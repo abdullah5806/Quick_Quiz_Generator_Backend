@@ -1,0 +1,98 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             Int           @id @default(autoincrement())
+  name           String
+  email          String        @unique
+  password       String
+  role           String
+  quizzes        Quiz[]
+  assignQuiz     AssignQuiz[]
+  quizAttempts   QuizAttempt[]
+  studentResults Result[]      @relation("StudentResults")
+  teacherResults Result[]      @relation("TeacherResults")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model Quiz {
+  id             Int            @id @default(autoincrement())
+  title          String
+  description    String
+  teacherId      Int
+  teacher        User           @relation(fields: [teacherId], references: [id])
+  questions      Question[]
+  assignQuiz     AssignQuiz[]
+  quizAttempts   QuizAttempt[]
+  results        Result[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  @@index([teacherId])
+}
+
+model Question {
+  id             Int      @id @default(autoincrement())
+  question       String
+  optionA        String
+  optionB        String
+  optionC        String
+  optionD        String
+  correctAns     String
+  marks          Int      @default(1)
+  quizId         Int
+  quiz           Quiz     @relation(fields: [quizId], references: [id])
+  @@index([quizId])
+}
+
+model AssignQuiz {
+  id          Int       @id @default(autoincrement())
+  quizId      Int
+  studentId   Int
+  assignedAt  DateTime  @default(now())
+  quiz        Quiz      @relation(fields: [quizId], references: [id])
+  student     User      @relation(fields: [studentId], references: [id])
+  @@unique([quizId, studentId])
+  @@index([quizId])
+  @@index([studentId])
+}
+
+model QuizAttempt {
+  id             Int       @id @default(autoincrement())
+  score          Int
+  userId         Int
+  quizId         Int
+  user           User      @relation(fields: [userId], references: [id])
+  quiz           Quiz      @relation(fields: [quizId], references: [id])
+  attemptedAt    DateTime  @default(now())
+  @@index([userId])
+  @@index([quizId])
+  @@index([attemptedAt])
+}
+
+model Result {
+  id             Int       @id @default(autoincrement())
+  studentId      Int
+  teacherId      Int
+  quizId         Int
+  score          Int
+  totalMarks     Int       @default(1)
+  student        User      @relation("StudentResults", fields: [studentId], references: [id])
+  teacher        User      @relation("TeacherResults", fields: [teacherId], references: [id])
+  quiz           Quiz      @relation(fields: [quizId], references: [id])
+  createdAt      DateTime  @default(now())
+  @@index([studentId])
+  @@index([teacherId])
+  @@index([quizId])
+}
