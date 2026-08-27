@@ -73,6 +73,14 @@ export const getAllQuestions = async (req, res) => {
                     question: {contains: search,},
                 }
                 : {},
+                include: {
+                    quiz: {
+                        select: {
+                            id: true,
+                            title: true,
+                        },
+                    },
+                },
             orderBy: {id: "asc",},
         });
         return res.status(200).json({
