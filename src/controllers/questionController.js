@@ -66,7 +66,13 @@ export const createQuestion = async (req, res) =>{
 // Get All Questions
 export const getAllQuestions = async (req, res) => {
     try {
+        const { search } = req.query;
         const questions = await prisma.question.findMany({
+            where: search
+                ? {
+                    question: {contains: search,},
+                }
+                : {},
             orderBy: {id: "asc",},
         });
         return res.status(200).json({
@@ -74,9 +80,8 @@ export const getAllQuestions = async (req, res) => {
             count: questions.length,
             data: questions,
         });
-    } 
-    catch (error) {
-        console.error("Get All Questions Error:",error);
+    } catch (error) {
+        console.error("Get All Questions Error:", error);
         return res.status(500).json({
             success: false,
             message: "Internal Server Error",
