@@ -109,7 +109,15 @@ export const attemptQuiz = async (req, res) => {
 //Teacher/Admin Can View All Attempts
 export const getAllAttempts = async (req, res) => {
     try {
-        const { student, quiz } = req.query;
+        const {
+            student,
+            quiz,
+            page = 1,
+            limit = 10,
+        } = req.query;
+        const currentPage = Math.max(Number(page) || 1, 1);
+        const pageLimit = Math.max(Number(limit) || 10,1);
+
         const where = {};
         if (student) {
             const studentUser = await prisma.user.findFirst({
@@ -124,10 +132,17 @@ export const getAllAttempts = async (req, res) => {
                     success: true,
                     count: 0,
                     data: [],
+                    pagination: {
+                        currentPage,
+                        pageLimit,
+                        totalAttempts: 0,
+                        totalPages: 0,
+                    },
                 });
             }
             where.userId = studentUser.id;
         }
+
         if (quiz) {
             const quizData = await prisma.quiz.findFirst({
                 where: {title: quiz,},
@@ -138,12 +153,29 @@ export const getAllAttempts = async (req, res) => {
                     success: true,
                     count: 0,
                     data: [],
+                    pagination: {
+                        currentPage,
+                        pageLimit,
+                        totalAttempts: 0,
+                        totalPages: 0,
+                    },
                 });
             }
             where.quizId = quizData.id;
         }
+        const totalAttempts =await prisma.quizAttempt.count({
+            where,
+        });
+
+        const totalPages =Math.ceil(totalAttempts / pageLimit);
+
+        const validPage =totalPages > 0 ? Math.min(currentPage, totalPages) : 1;
+        const skip =(validPage - 1) * pageLimit;
+
         const attempts = await prisma.quizAttempt.findMany({
             where,
+            skip,
+            take: pageLimit,
             include: {
                 user: {
                     select: {
@@ -152,6 +184,7 @@ export const getAllAttempts = async (req, res) => {
                         email: true,
                     },
                 },
+
                 quiz: {
                     select: {
                         id: true,
@@ -161,13 +194,22 @@ export const getAllAttempts = async (req, res) => {
             },
             orderBy: {attemptedAt: "desc",},
         });
+
         return res.status(200).json({
             success: true,
             count: attempts.length,
             data: attempts,
+            pagination: {
+                currentPage: validPage,
+                pageLimit,
+                totalAttempts,
+                totalPages,
+                hasNextPage: validPage < totalPages,
+                hasPreviousPage: validPage > 1,
+            },
         });
     } catch (error) {
-        console.error("Get All Attempts Error:", error);
+        console.error("Get All Attempts Error:",error);
         return res.status(500).json({
             success: false,
             message: "Internal Server Error",
@@ -175,14 +217,12 @@ export const getAllAttempts = async (req, res) => {
     }
 };
 // GET STUDENTS + QUIZZES FOR DROPDOWNS
-export const getAttemptFilters = async (req, res) => {
+export const getAttemptFilters = async (req,res) => {
     try {
-        const students = await prisma.user.findMany({
+        const students =await prisma.user.findMany({
             where: {
                 role: "Student",
-                quizAttempts: {
-                    some: {},
-                },
+                quizAttempts: {some: {},},
             },
             select: {
                 id: true,
@@ -190,7 +230,8 @@ export const getAttemptFilters = async (req, res) => {
             },
             orderBy: {name: "asc",},
         });
-        const quizzes = await prisma.quiz.findMany({
+
+        const quizzes =await prisma.quiz.findMany({
             select: {
                 id: true,
                 title: true,
@@ -203,7 +244,8 @@ export const getAttemptFilters = async (req, res) => {
             quizzes,
         });
     } catch (error) {
-        console.error("Get Attempt Filters Error:", error);
+        console.error("Get Attempt Filters Error:",error);
+
         return res.status(500).json({
             success: false,
             message: "Internal Server Error",
