@@ -2,6 +2,7 @@ import express from "express";
 import {
   attemptQuiz,
   getAllAttempts,
+  getAttemptFilters,
 } from "../controllers/attemptController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import roleMiddleware from "../middleware/roleMiddleware.js";
@@ -85,5 +86,7 @@ router.post("/", authMiddleware, roleMiddleware("STUDENT"), attemptQuiz);
  */
 
 router.get("/attempts", authMiddleware, roleMiddleware("TEACHER", "ADMIN"), getAllAttempts);
+
+router.get("/attempt-filters", getAttemptFilters);
 
 export default router;
