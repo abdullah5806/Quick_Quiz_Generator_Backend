@@ -109,8 +109,42 @@ export const attemptQuiz = async (req, res) => {
 //Teacher/Admin Can View All Attempts
 export const getAllAttempts = async (req, res) => {
     try {
+        const { student, quiz } = req.query;
+        const where = {};
+        if (student) {
+            const studentUser = await prisma.user.findFirst({
+                where: {
+                    role: "Student",
+                    name: student,
+                },
+                select: {id: true,},
+            });
+            if (!studentUser) {
+                return res.status(200).json({
+                    success: true,
+                    count: 0,
+                    data: [],
+                });
+            }
+            where.userId = studentUser.id;
+        }
+        if (quiz) {
+            const quizData = await prisma.quiz.findFirst({
+                where: {title: quiz,},
+                select: {id: true,},
+            });
+            if (!quizData) {
+                return res.status(200).json({
+                    success: true,
+                    count: 0,
+                    data: [],
+                });
+            }
+            where.quizId = quizData.id;
+        }
         const attempts = await prisma.quizAttempt.findMany({
-        include: {
+            where,
+            include: {
                 user: {
                     select: {
                         id: true,
@@ -118,7 +152,12 @@ export const getAllAttempts = async (req, res) => {
                         email: true,
                     },
                 },
-                quiz: true,
+                quiz: {
+                    select: {
+                        id: true,
+                        title: true,
+                    },
+                },
             },
             orderBy: {attemptedAt: "desc",},
         });
@@ -128,10 +167,43 @@ export const getAllAttempts = async (req, res) => {
             data: attempts,
         });
     } catch (error) {
-        console.error(
-            "Get All Attempts Error:",
-            error
-        );
+        console.error("Get All Attempts Error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+        });
+    }
+};
+// GET STUDENTS + QUIZZES FOR DROPDOWNS
+export const getAttemptFilters = async (req, res) => {
+    try {
+        const students = await prisma.user.findMany({
+            where: {
+                role: "Student",
+                quizAttempts: {
+                    some: {},
+                },
+            },
+            select: {
+                id: true,
+                name: true,
+            },
+            orderBy: {name: "asc",},
+        });
+        const quizzes = await prisma.quiz.findMany({
+            select: {
+                id: true,
+                title: true,
+            },
+            orderBy: {title: "asc",},
+        });
+        return res.status(200).json({
+            success: true,
+            students,
+            quizzes,
+        });
+    } catch (error) {
+        console.error("Get Attempt Filters Error:", error);
         return res.status(500).json({
             success: false,
             message: "Internal Server Error",
